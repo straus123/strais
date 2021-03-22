@@ -12,6 +12,57 @@ class StraisServer:
         self.db = db
         self.socket.setblocking(False)
         print(f"Listen {host}:{port}")
+        self._action_map={
+            "get": self._get,
+            "set": self._set
+        }
+
+
+    def exec_action(self, action:str):
+        """
+        exec function based on action_map dict, if action was not found return exec unhandled_action
+
+        :param action:
+        :return:
+            function to exec
+        example:
+        exec_action('get') -> _get
+        exec_action('unhandled') -> _unhandled_action
+        """
+        return self._action_map.get(action, self._unhandled_action)
+
+    def _get(self, action, key, value) -> str:
+        """
+        get data action
+        :param
+            action: str,
+            key: str,
+            value: str
+        :return:
+            string
+        """
+        return self.db.get(key)
+
+    def _set(self, action, key, value) -> bytes:
+        """
+        wrapper for set action
+        :param
+            action: str,
+            key: str,
+            value: str
+        :return:
+            string(ok or error)
+        """
+        if self.db.set(key, value):
+            return b"Ok"
+        else:
+            return b"Error while setting data"
+
+
+    def _unhandled_action(self, action, key, value) -> bytes:
+        return f"Cant perform action={action}".encode()
+
+
 
     def register(self):
         self.sel.register(self.socket, selectors.EVENT_READ, self.accept)
@@ -20,17 +71,8 @@ class StraisServer:
         data = conn.recv(1024)  # Should be ready
         if data:
             action, key, value = self.split_input_data(data)
-            if action == "get":
-                conn.sendall(self.db.get(key))
-            elif action == "set":
-                if self.db.set(key, value):
-                    conn.sendall(b"OK")
-                else:
-                    conn.sendall(b"Error while setting data")
-            elif action == "error":
-                conn.sendall(value.encode())
-            else:
-                conn.sendall(b"Unhandled error")
+            action_func = self.exec_action(action)
+            conn.sendall(action_func(action=action, key=key, value=value))
         else:
             print('closing', conn)
             self.sel.unregister(conn)
