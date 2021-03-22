@@ -6,15 +6,15 @@ import selectors
 class StraisServer:
     def __init__(self, host='', port=9999, db=None):
         self.sel = selectors.DefaultSelector()
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.bind((host, port))
-        self.s.listen()
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((host, port))
+        self.socket.listen()
         self.db = db
-        self.s.setblocking(False)
+        self.socket.setblocking(False)
         print(f"Listen {host}:{port}")
 
     def register(self):
-        self.sel.register(self.s, selectors.EVENT_READ, self.accept)
+        self.sel.register(self.socket, selectors.EVENT_READ, self.accept)
 
     def read(self, conn, mask) -> None:
         data = conn.recv(1024)  # Should be ready
